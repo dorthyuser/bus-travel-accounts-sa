@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:s3="http://www.mulesoft.org/schema/mule/s3"
+	xmlns:custom-metrics="http://www.mulesoft.org/schema/mule/custom-metrics"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+	http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+	http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/custom-metrics http://www.mulesoft.org/schema/mule/custom-metrics/current/mule-custom-metrics.xsd
+http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd">
+
+
+	<s3:config name="Amazon_S3_Configuration" doc:name="Amazon S3 Configuration" doc:id="9ebac2f1-e503-4cb9-8c74-98aaa565fb2f" >
+		<s3:connection accessKey="${secure::amazon.s3.accessKey}" secretKey="${secure::amazon.s3.secretKey}" region="${amazon.s3.region}">
+			<reconnection >
+				<reconnect />
+			</reconnection>
+		</s3:connection>
+	</s3:config>
+	<error-handler name="global-error-handler">
+
+		<on-error-continue type="APIKIT:BAD_REQUEST"
+			enableNotifications="false" logException="true">
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="c0ab9cb9-da01-4724-adba-47d3b84f495a"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+              errorCode: 400,
+              errorDateTime: now(),
+              errorMessage: "BAD REQUEST",
+              errorDescription: error.description
+           }
+ }]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="41a98453-678a-4802-ac72-21b7c117f451">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="ee2f3bcf-109c-4ab3-8859-6609c2714f43"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="d9331984-943b-4299-bd6b-22622b327272" name="custom-metrics-sub-Flow" />
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="9067f0e3-d4ff-468f-b408-d97384341136" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+		<on-error-continue type="APIKIT:NOT_FOUND"
+			enableNotifications="false" logException="true">
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="4b112270-9d61-400b-beb5-4b96728bde39"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+              errorCode: 404,
+              errorDateTime: now(),
+              errorMessage: "RESOURCE NOT FOUND",
+              errorDescription: error.description
+           }
+ }]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="7997c8b9-62cd-4954-9395-66776558452b">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="37d1d9bd-c274-4d1f-85f1-f1f67add42cd"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="16c8b5d6-29ae-47a9-85f9-3e0ac62d6dc3" name="custom-metrics-sub-Flow" />
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="20ade411-d612-4275-a7ef-68c45d317125" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+		<on-error-continue type="APIKIT:METHOD_NOT_ALLOWED"
+			enableNotifications="false" logException="true">
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="2deb3934-a66f-4b48-90ea-b26746c7ca14"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+              errorCode: 405,
+              errorDateTime: now(),
+              errorMessage: "METHOD NOT ALLOWED",
+              errorDescription: error.description
+           }
+ }]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="c4430f71-34d3-4cbc-a3ff-676978b689e3">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="2b544d97-06ab-4a6e-bde3-5935ef16a921"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="79426ee0-ebdf-4772-a44f-4e2e6c01a9d7" name="custom-metrics-sub-Flow" />
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="bd78f185-0f6f-424d-9d65-a3a87c66160e" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+		<on-error-continue
+			type="APIKIT:UNSUPPORTED_MEDIA_TYPE" enableNotifications="false"
+			logException="true">
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="737037ea-c87a-4334-9539-40c72edafe38"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+              errorCode: 415,
+              errorDateTime: now(),
+              errorMessage: "UNSUPPORTED MEDIA TYPE",
+              errorDescription: error.description
+           }
+ }]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="04938e76-1319-4099-83e2-580a78e54d9e">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="f53973a2-28a5-4ac5-a3ee-042b47e7bfd7"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="c724b687-f04f-492d-a029-72fc09d57876" name="custom-metrics-sub-Flow" />
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="2a1e3fe0-8780-40df-86fc-ccd358ca5ba6" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+		<on-error-continue enableNotifications="true"
+			logException="true"
+			when='#[error.errorType.namespace == "SALESFORCE" and error.errorType.identifier == "CONNECTIVITY" and (error.description contains "Invalid")]'>
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="d7d954cf-7c48-405f-a810-53ea62bdb8ac"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+              errorCode: 401,
+              errorDateTime: now(),
+              errorMessage: error.errorType.namespace ++ " " ++ error.errorType.identifier ++ " ERROR",
+              errorDescription: error.description
+           }
+ }]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[401]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="12ae73e9-98f3-4e06-8c99-1addea6627e6">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="7bd95df3-7803-4ab2-ad70-d39c3004c652"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="65421def-2be9-4492-aa88-0de85909a93a" name="custom-metrics-sub-Flow" />
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="f84d146b-6e44-43a7-8e82-d1f25d2364ec" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+		<on-error-continue enableNotifications="true"
+			logException="true"
+			when='#[error.errorType.namespace == "SALESFORCE" and error.errorType.identifier == "CONNECTIVITY"  and (error.description contains "Failed to send request") ]'>
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="b5e5ee65-9fbd-484a-831a-6f681859a473"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+			errorCode: 404,
+			errorDateTime: now(),
+			errorMessage: error.errorType.namespace ++ " " ++ error.errorType.identifier ++ " " ++ "ERROR",
+			errorDescription: error.description
+	      }
+}]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[404]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="9bef4e44-2061-49be-84e7-54639dfaafba">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="b329872b-4ff0-4727-921e-54b7a025271d"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="080cb746-87f0-4b9f-8fa7-49f0da4b9650" name="custom-metrics-sub-Flow" />
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="1daf956d-ccd9-4ce7-8553-523294a4e18c" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+		<on-error-continue type="ANY"
+			enableNotifications="false" logException="true">
+			<ee:transform
+				xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+				xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+				doc:id="fa32863b-c2f3-4f20-a94d-48d1ffaaa1df"
+				doc:name="Error Response">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  error: {
+              errorCode: 500,
+              errorDateTime: now(),
+              errorMessage: error.errorType.namespace ++ " " ++ error.errorType.identifier ++ " ERROR",
+              errorDescription: error.description
+           }
+ }]]></ee:set-payload>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="httpStatus"><![CDATA[500]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Object to JSON"
+				doc:id="49e32fcd-7aee-4d5e-9ff6-b12083a53106">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<json-logger:logger doc:name="Log Error"
+				doc:id="5a640890-0b2a-424c-93de-05ddc58cdec5"
+				config-ref="JSON_Logger_Config" message="Error"
+				tracePoint="EXCEPTION" priority="ERROR"
+				correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']">
+				<json-logger:content><![CDATA[#[import modules::JSONLoggerModule
+output application/json 
+---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(payload),
+   details: vars.basicDetails
+}]]]></json-logger:content>
+			</json-logger:logger>
+			<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="b149b850-7216-4cc2-a398-656274fe3dc2" name="custom-metrics-sub-Flow"/>
+			<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="376010b2-da86-48ac-ad85-fb3f362e21e0" name="create-object-in-amazon-s3-bucket" target="s3Response"/>
+		
+</on-error-continue>
+
+	</error-handler>
+	<sub-flow name="custom-metrics-sub-Flow" doc:id="75fcef98-7691-4ecf-b5cc-eff0f9d87b98" >
+		<custom-metrics:send doc:name="Send Custom Metric" doc:id="68362b9c-2854-452f-9135-61fd9c401bac" metricName="GBR_EXCEPTIONS">
+				<custom-metrics:dimensions>
+					<custom-metrics:dimension dimensionName="HTTP_METHOD" value="#[vars.vRequestMethod]" />
+					<custom-metrics:dimension dimensionName="GBR_EXCEPTION" value='#[payload.error.errorMessage replace " " with  "_"]' />
+				</custom-metrics:dimensions>
+				<custom-metrics:facts>
+					<custom-metrics:fact factName="GBR_EXCEPTION_COUNT" value="1" />
+				</custom-metrics:facts>
+			</custom-metrics:send>
+	</sub-flow>
+	<sub-flow name="create-object-in-amazon-s3-bucket" doc:id="7a6c59e4-3a8d-431e-bc5c-b2a4a12a9a40" >
+		<ee:transform doc:name="Error payload to Amazon s3 bucket" doc:id="bd137003-989a-4a91-ad14-04b37636f80e" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="s3payload" ><![CDATA[%dw 2.0
+import first from dw::core::Strings
+output application/json
+---
+{
+  "errorCode": payload.error.errorCode,
+  "httpMethod": vars.vRequestMethod,
+  "httpErrorCode": vars.httpStatus,
+  "errorMessage": payload.error.errorMessage,
+  "errorDescription": if (typeOf(payload.error.errorDescription) == String)
+ 							payload.error.errorDescription first 256
+ 					  else if (typeOf(payload.error.errorDescription) == Object)
+							payload.error.errorDescription.message first 256
+    				  else
+ 							payload.error.errorDescription,
+  "timestamp": payload.error.errorDateTime,
+  "apiName": app.name,
+  "endpoint": vars.basicDetails.relativePath
+} ]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<json-logger:logger doc:name="Before error sent to S3bucket" doc:id="7d616c88-73f3-49e8-8663-be88f0712d4f" config-ref="JSON_Logger_Config" message='#["Before error sent to S3 bucket."]' tracePoint="BEFORE_REQUEST" correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="ERROR">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    s3payload: JSONLoggerModule::stringifyNonJSON(vars.s3payload)
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<s3:put-object doc:name="Put Object" doc:id="b22e0e35-3e33-443b-bc48-cbd34edaa0f6" config-ref="Amazon_S3_Configuration" bucketName="${amazon.s3.bucket}" key='#[app.name ++ "-" ++ now()]' >
+			<s3:content ><![CDATA[#[vars.s3payload]]]></s3:content>
+		</s3:put-object>
+		<ee:transform doc:name="Transform Message" doc:id="eb6e9112-b17c-4d44-9186-4d24893d2c9b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<json-logger:logger doc:name="After error sent to S3bucket" doc:id="5e271a29-c1d5-4024-ad41-5c8ec60d06db" config-ref="JSON_Logger_Config" message='#["Created error in S3 bucket."]' tracePoint="AFTER_REQUEST" correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="ERROR">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    payload: JSONLoggerModule::stringifyNonJSON(payload)
+}]]]></json-logger:content>
+		</json-logger:logger>
+	</sub-flow>
+
+
+</mule>

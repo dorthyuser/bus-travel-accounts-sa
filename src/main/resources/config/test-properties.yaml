@@ -1,0 +1,44 @@
+api:
+  version: "v1"
+
+https:  
+  listener:
+    host: "0.0.0.0"
+    port: "8092"
+    path: "api/${api.version}/*"
+   
+# Salesforce #
+salesforce:
+  username: "mulesoft@raildeliverygroup.com.sit"
+  password: "![WLrubxHP2PGpg0R29Sq5RyZK1LwIer+0Ea3H5yYVIyE=]"
+  token: "![I7VCrgIkNaAEVYh/QIulJmg+AqFmOlwsBi110Spgjlo=]"
+  consumerKey: "![kmrQSBH3gjL11qXtKY9rqVl0EflcHdcpNMxK5mP1QHw2cIlbLxsms4OO0Sve6El42eh2afXxfhvxgwRKF48BGP5MpI1/Tak0JAq1IYoaBT/PL77Yuv+KLKNazz1ihWUN]"
+  consumerSecret: "![pvPb/chc5FB0TePWChREF8Au58pRyA13L1GmvPkOaRvXYofLepku6LV1F33sFKep6BdIrqiUe+y++unxbAW++4kyw/g5cYNYY1dsRMBvzZc=]"
+  passwordToken: "![REIQRakebV8/RFmCoQYbwOPh3KFYZwzu7uMEnwvONUh7rmnF3aItUOhqNVHBH6Ey]"
+  webServiceURL: "rdg--sit.my.salesforce.com"
+  url: "https://test.salesforce.com/services/Soap/u/41.0"
+  reconnect:
+    frequencyInMilliseconds: "500"
+    count: "3"
+  responseTimeout: "1800000"
+
+# Amazon s3 bucket # 
+amazon:
+  s3:
+    accessKey: "![nPiyykj4kF29ymi24etbgfCt9LD+t/EIK+fjU51DGxc=]"
+    secretKey: "![cvBTVW4kTVW+wseBslUBTK+DeQNZXxcUB0t+pFYJ9uvCW3BHLkFA0nEFus1eJPPA]"
+    region: "eu-west-1" 
+#   Europe (Ireland) 
+    bucket: "mulesoft-sf-error-landing"       
+      
+keystore:
+  file:
+    path: "config/keystore-nonproduction.jks"
+  cert:
+    alias: "mule"
+  keypassword: "![O07aOQy/8wplLawz9ExPZw==]"
+  storepassword: "![HjsP93B2e/Hl4iuv3sSUWQ==]"
+
+autodiscovery:
+  api:
+    id: "18842338"

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd">
+
+	<!-- https listener config -->
+	<http:listener-config
+		name="railcards-accounts-sa-httpsListenerConfig">
+		<http:listener-connection
+			host="${https.listener.host}" port="${https.listener.port}" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="${keystore.file.path}" alias="${keystore.cert.alias}" keyPassword="${secure::keystore.keypassword}" password="${secure::keystore.storepassword}" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+
+	<json-logger:config name="JSON_Logger_Config"
+		doc:name="JSON Logger Config"
+		doc:id="415ce023-85f2-416b-a19f-2f807fe3f2c8"
+		environment="${mule.env}"
+		contentFieldsDataMasking="${json.logger.masked.fields}" />
+
+	<!-- salesforce config deprecated for version 9 <salesforce:sfdc-config 
+		name="Salesforce_Config_deprecated" doc:name="Salesforce Config" doc:id="9cf4347a-a5c1-4f59-808a-0a6b356e29ba" 
+		> <salesforce:config-with-oauth-connection > <salesforce:oauth-callback-config 
+		listenerConfig="bus-travel-accounts-sa-httpsListenerConfig" /> </salesforce:config-with-oauth-connection> 
+		<salesforce:cached-basic-connection username="${salesforce.username}" password="${secure::salesforce.password}" 
+		securityToken="${secure::salesforce.token}" url="${salesforce.url}" disableSessionInvalidation="true"> 
+		<reconnection failsDeployment="true" > <reconnect frequency="5000" count="5" 
+		/> </reconnection> </salesforce:cached-basic-connection> </salesforce:sfdc-config> -->
+
+
+	<!-- Environment Properties -->
+	<global-property name="mule.env" value="local" />
+
+	<configuration doc:name="Configuration"
+		doc:id="a09442c7-6605-4e88-86a4-2626bf43b11c"
+		defaultErrorHandler-ref="global-error-handler" />
+
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="6877741d-2f9f-47c9-a68f-223f98f48ba4"
+		file="config/${mule.env}-properties.yaml" />
+
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="181c10b1-a62f-406a-9525-32c359a0bc85"
+		file="json-logger.properties" />
+
+	<!-- API Autodiscovery Configuration -->
+	<api-gateway:autodiscovery
+		apiId="${autodiscovery.api.id}"
+		flowRef="railcards-accounts-sa-api" doc:name="API Autodiscovery" ignoreBasePath="true"/>
+
+	<!-- Secure Properties -->
+	<secure-properties:config
+		name="Secure_Properties_Config" doc:name="Secure Properties Config"
+		doc:id="101d1746-233c-437c-81a1-ba741f1c9e96"
+		file="config/${mule.env}-properties.yaml" key="${mule.key}" />
+
+	<!-- salesforce config -->
+	<salesforce:sfdc-config name="Salesforce_Config"
+		doc:name="Salesforce Config"
+		doc:id="002f960f-f725-4b67-a5c3-551cb8e7b8e1">
+		<salesforce:basic-connection
+			username="${salesforce.username}"
+			password="${secure::salesforce.password}"
+			securityToken="${secure::salesforce.token}" url="${salesforce.url}">
+			<reconnection failsDeployment="true">
+				<reconnect />
+			</reconnection>
+		</salesforce:basic-connection>
+	</salesforce:sfdc-config>
+</mule>
