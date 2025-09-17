@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+	http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd">
+
+	<sub-flow name="travel-accounts-sa-get-accounts-sub-flow"
+		doc:id="46dfeec1-89ad-48c0-8f28-11b0d8477132">
+		<json-logger:logger
+			doc:name="Before Salesforce Request Logger"
+			doc:id="c26976b3-df30-454c-b7ad-5e30eadb621e"
+			config-ref="JSON_Logger_Config"
+			message="Before Request - ListAccountsByEmail"
+			tracePoint="BEFORE_REQUEST"
+			correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+	personEmail: if(attributes.queryParams.email != null) trim(attributes.queryParams.email) else null
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<set-variable value="#[%dw 2.0&#10;fun enrichSingleQuoteEmail(value) = value replace &quot;'&quot; with &quot;\'&quot;&#10;output application/java&#10;---&#10;enrichSingleQuoteEmail(attributes.queryParams.email)]" doc:name="Enrich Single quote Email" doc:id="73538192-0552-46ce-8265-b2aa05a220d9" variableName="email"/>
+		<salesforce:query doc:name="ListAccountsByEmail"
+			doc:id="0a9d6c6d-29eb-4728-b883-62f90b8f3f69"
+			config-ref="Salesforce_Config">
+			<reconnect />
+			<salesforce:salesforce-query><![CDATA[select id, Account_Status__c, Salutation, firstname, lastname, PersonEmail, PersonBirthdate, Phone, PersonMobilePhone, PersonMailingAddress, Hotlisted__c, Source__c
+from account where PersonEmail = ':EmailId']]></salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	EmailId : vars.email
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<json-logger:logger
+			doc:name="After Salesforce Request Logger"
+			doc:id="8557f834-4d06-446a-9974-8d6066ff4a7a"
+			config-ref="JSON_Logger_Config"
+			message="After Request - ListAccountsByEmail"
+			tracePoint="AFTER_REQUEST"
+			correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    "Salesforce Get Accounts Response - No of accounts returned:" : sizeOf(payload)
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<choice doc:name="Choice - Accounts?"
+			doc:id="6b3b11b8-cb32-4257-a1b6-f55711c60c23">
+			<when expression="sizeOf(payload) &gt; 0">
+				<ee:transform doc:name="Accounts Response"
+					doc:id="4556c710-0e15-4e00-bb6a-bad8d79df13f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ((payload01,indexOfPayload01) -> {
+	id: trim(payload01.Id),
+    salutation: trim(payload01.Salutation),
+    firstName: trim(payload01.FirstName),
+    lastName: trim(payload01.LastName),
+    personBirthdate: payload01.PersonBirthdate,
+    phone: trim(payload01.Phone),
+    mobilePhone: trim(payload01.PersonMobilePhone),
+    personEmail: trim(payload01.PersonEmail),
+    mailingStreet: trim(payload01.PersonMailingAddress.street),
+    mailingPostalCode: trim(payload01.PersonMailingAddress.postalCode),
+    mailingCity: trim(payload01.PersonMailingAddress.city),
+    mailingCountry: trim(payload01.PersonMailingAddress.country),
+    accountStatus: trim(payload01.Account_Status__c),
+    accountSource: trim(payload01.Source__c) default "",
+    hotlisted: payload01.Hotlisted__c
+    })]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<set-variable value="204"
+					doc:name="Set HTTP Status Code"
+					doc:id="3d943716-a753-4d6f-8cff-309f06c938f9"
+					variableName="httpStatus" />
+				<set-payload value='#["[]"]'
+					doc:name="Set Payload - No result"
+					doc:id="1d880254-2573-4740-88ca-530dcdc17d3d" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+
+	<sub-flow
+		name="travel-accounts-sa-get-account-details-sub-flow"
+		doc:id="c4888b5a-7844-410c-89fe-dbd5903af157">
+		<json-logger:logger
+			doc:name="Before Salesforce Request Logger"
+			doc:id="38153483-052e-4576-950c-bad06d0f3597"
+			config-ref="JSON_Logger_Config"
+			message="Before Request - GetAccountDetails"
+			tracePoint="BEFORE_REQUEST"
+			correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    "AccountId": if(attributes.uriParams.id != null) trim(attributes.uriParams.id) else null
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<salesforce:query doc:name="GetAccountDetails"
+			doc:id="456f363a-e4f3-499a-a648-c0f518bfda58"
+			config-ref="Salesforce_Config">
+			<reconnect />
+			<salesforce:salesforce-query>select id, Account_Status__c, Salutation, firstname, lastname, PersonEmail, PersonBirthdate, Phone, PersonMobilePhone, PersonMailingAddress, Hotlisted__c, Source__c
+from account where id = ':AccountId'</salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	AccountId : attributes.uriParams.id
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<json-logger:logger
+			doc:name="After Salesforce Request Logger"
+			doc:id="e13ac740-2908-46f3-9b91-2dd1da35540d"
+			config-ref="JSON_Logger_Config"
+			message="After Request - GetAccountDetails"
+			correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']"
+			tracePoint="AFTER_REQUEST" priority="DEBUG">
+			<json-logger:content><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+     "Salesforce Get Account Details Response - No of accounts returned:" : sizeOf(payload)
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<choice doc:name="Choice - Account Details?"
+			doc:id="72af7757-a2de-49e5-b807-19bffa75ba47">
+			<when expression="sizeOf(payload) &gt; 0">
+				<ee:transform doc:name="Account Details Response"
+					doc:id="8a40ce8f-3c69-4a47-a9c4-8d7e531a9d4a">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+ {	 	
+	id: trim(payload[0].Id),
+    salutation: trim(payload[0].Salutation),
+    firstName: trim(payload[0].FirstName),
+    lastName: trim(payload[0].LastName),
+    personBirthdate: payload[0].PersonBirthdate,
+    phone: trim(payload[0].Phone),
+    mobilePhone: trim(payload[0].PersonMobilePhone),
+    personEmail: trim(payload[0].PersonEmail),
+    mailingStreet: trim(payload[0].PersonMailingAddress.street),
+    mailingPostalCode: trim(payload[0].PersonMailingAddress.postalCode),
+    mailingCity: trim(payload[0].PersonMailingAddress.city),
+    mailingCountry: trim(payload[0].PersonMailingAddress.country),
+    accountStatus: trim(payload[0].Account_Status__c),
+    accountSource: trim(payload[0].Source__c) default "",
+    hotlisted: payload[0].Hotlisted__c
+  }
+ 
+    ]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<set-variable value="204"
+					doc:name="Set HTTP Status Code"
+					doc:id="788e6d01-42cb-402b-8244-4b9e7bd6143f"
+					variableName="httpStatus" />
+				<set-payload value='#["[]"]'
+					doc:name="Set Payload - No result"
+					doc:id="15adf5ff-de84-4987-9b5b-41f969e295e0" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+
+	<sub-flow name="travel-accounts-sa-post-accounts-sub-flow"
+		doc:id="879f69a1-6a0c-45aa-bd16-9cf5adb877f5">
+		<ee:transform doc:name="Create Account Salesforce Request" doc:id="6a967169-0168-4ed4-aa30-dd0c066021df">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+[
+	{
+		LastName: trim(payload.lastName),
+		FirstName: trim(payload.firstName),
+		Salutation: trim(payload.salutation),
+		(Phone:  trim(payload.phone as String)) if (payload.phone != null),	  
+		PersonMailingStreet: trim(payload.mailingStreet),
+		PersonMailingCity: trim(payload.mailingCity),
+		PersonMailingPostalCode: trim(payload.mailingPostalCode),
+		PersonMailingCountry: trim(payload.mailingCountry),
+		(PersonMobilePhone: trim(payload.mobilePhone as String)) if (payload.mobilePhone !=null),
+		PersonEmail: trim(payload.personEmail),
+		(PersonBirthdate: payload.personBirthdate as Date) if (payload.personBirthdate !=null),
+		Account_Status__c: trim(payload.accountStatus),
+		Source__c: trim(payload.accountSource)
+	}
+]
+]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="logPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	salutation: trim(payload.salutation),
+	firstName: trim(payload.firstName),
+	lastName: trim(payload.lastName),
+	(personBirthdate: payload.personBirthdate as Date) if (payload.personBirthdate !=null),
+	(phone:  trim(payload.phone as String)) if (payload.phone != null),
+	(mobilePhone: trim(payload.mobilePhone as String)) if (payload.mobilePhone !=null),
+	personEmail: trim(payload.personEmail),
+	mailingStreet: trim(payload.mailingStreet),
+	mailingCity: trim(payload.mailingCity),
+	mailingPostalCode: trim(payload.mailingPostalCode),
+	mailingCountry: trim(payload.mailingCountry),
+	accountStatus: trim(payload.accountStatus),
+	accountSource: trim(payload.accountSource)
+}
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<json-logger:logger doc:name="Before Salesforce Request Logger" doc:id="ac903174-5e3e-4276-8377-6bba2cf31688" config-ref="JSON_Logger_Config" message="Before Request - Create single account" tracePoint="BEFORE_REQUEST" correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    payload: if(!isEmpty(vars.logPayload)) JSONLoggerModule::stringifyNonJSON(vars.logPayload) else null
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<salesforce:create type="Account" doc:name="Create single account" doc:id="107daa17-f5bb-4878-8568-3739ee51cf3c" config-ref="Salesforce_Config">
+			<reconnect />
+		</salesforce:create>
+		<!-- <salesforce:create-single type="Account" doc:name="Create single account" doc:id="d01b119f-593c-48a3-9786-1abae391d91c" config-ref="Salesforce_Config">
+			<reconnect />
+		</salesforce:create-single> -->
+		
+		  <ee:transform doc:name="SalesforceCreateAccountResponse" doc:id="9d7fef44-28c3-4155-a401-14f6542568f9" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="salesforceCreateAccountResponse" ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<json-logger:logger doc:name="After Salesforce Request Logger" doc:id="23121749-74fa-4f08-a4ee-732053d12312" config-ref="JSON_Logger_Config" message="After Request - Create single account" tracePoint="AFTER_REQUEST" correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+   payload: JSONLoggerModule::stringifyNonJSON(vars.salesforceCreateAccountResponse) 
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<choice doc:name="Choice - Account Created?" doc:id="5044a9f8-8386-4022-b4ff-c036089abe44" >
+			<when expression="#[payload.successful == true]">
+				<ee:transform doc:name="Create Account Response" doc:id="b44c675b-a1af-450b-af14-79902d22d3ed">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: payload.items.payload.id[0]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="400" doc:name="Set HTTP Status Code" doc:id="2fee0364-2183-4af2-8081-7f0cbdb68aad" variableName="httpStatus"/>
+				<ee:transform doc:name="Create Account Error Response" doc:id="5c32a1ac-1463-493d-bf2e-43c8cebc581c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: {    
+			  errorCode: vars.httpStatus,
+			  errorDateTime: now(),
+			  errorMessage: payload.items[0].payload.errors[0].statusCode ++ " " ++ "ERROR",
+			  errorDescription: payload.items[0].payload.errors[0].message
+          }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="b10f1a38-b2b2-48ac-b0f6-e641ec4953c9" name="custom-metrics-sub-Flow"/>
+				<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="58da3b7b-705f-48c1-a74f-e27f8ad1204d" name="create-object-in-amazon-s3-bucket" target="s3Response" />
+			
+</otherwise>
+		</choice>
+	</sub-flow>
+	
+	<sub-flow name="travel-accounts-sa-put-accounts-sub-flow" doc:id="a0ad7eb8-b468-4683-beda-634420cedb8c" >
+		<ee:transform doc:name="Update Account Request" doc:id="6c5a914e-412b-4692-956c-24e1a2768f71">
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[
+	{
+		Id: trim(attributes.uriParams.id),
+		LastName: trim(payload.lastName),
+		FirstName: trim(payload.firstName),
+		Salutation: payload.salutation,
+		(Phone:  trim(payload.phone as String)) if (payload.phone != null),	
+		PersonMailingStreet: trim(payload.mailingStreet),
+		PersonMailingCity: trim(payload.mailingCity),
+		PersonMailingPostalCode: trim(payload.mailingPostalCode),
+		PersonMailingCountry: trim(payload.mailingCountry),
+		(PersonMobilePhone: trim(payload.mobilePhone as String)) if (payload.mobilePhone !=null),
+		PersonEmail: trim(payload.personEmail),
+		(PersonBirthdate: payload.personBirthdate as Date) if (payload.personBirthdate !=null),
+		Account_Status__c: trim(payload.accountStatus),
+		Source__c: trim(payload.accountSource)
+	}
+]]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="logPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: trim(attributes.uriParams.id),
+	salutation: trim(payload.salutation),
+	firstName: trim(payload.firstName),
+	lastName: trim(payload.lastName),
+	(personBirthdate: payload.personBirthdate as Date) if (payload.personBirthdate !=null),
+	(mobilePhone: trim(payload.mobilePhone as String)) if (payload.mobilePhone !=null),
+	(phone:  trim(payload.phone as String)) if (payload.phone != null),
+	personEmail: trim(payload.personEmail),
+	mailingStreet: trim(payload.mailingStreet),
+	mailingCity: trim(payload.mailingCity),
+	mailingPostalCode: trim(payload.mailingPostalCode),
+	mailingCountry: trim(payload.mailingCountry),
+	accountStatus: trim(payload.accountStatus),
+	accountSource: payload.accountSource
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<json-logger:logger doc:name="Before Salesforce Request Logger" doc:id="20d7eadf-0901-4f34-af42-91119f05d98b" config-ref="JSON_Logger_Config" message="Before Request - Update single account" tracePoint="BEFORE_REQUEST" correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    "AccountId" : if(attributes.uriParams.id != null) trim(attributes.uriParams.id) else null,
+    payload: if(!isEmpty(vars.logPayload)) JSONLoggerModule::stringifyNonJSON(vars.logPayload) else null
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<salesforce:update doc:name="Update single account" doc:id="3bbb3906-2e80-424d-828e-e52a43ac4c49" config-ref="Salesforce_Config" type="Account">
+			<reconnect />
+		</salesforce:update>
+		<!-- <salesforce:update-single type="Account" doc:name="Update single account" doc:id="ea407d37-e197-40a7-96a7-4bdee82878c6" config-ref="Salesforce_Config">
+			<reconnect />
+		</salesforce:update-single>  -->		<ee:transform doc:name="SalesforceUpdateAccountResponse" doc:id="3b1e4e27-aca5-48eb-a45e-dfc4c8c9ed06" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="salesforceUpdateAccountResponse" ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>		
+		<json-logger:logger doc:name="After Salesforce Request Logger" doc:id="4efb725c-9f95-4056-a13a-7ef196baf2cb" config-ref="JSON_Logger_Config" message="After Request - Update single account" tracePoint="AFTER_REQUEST" correlationId="#[vars.basicDetails.X_CORRELATION_ID default 'MULE-CORRELATIONID-NOTFOUND']" priority="DEBUG">
+			<json-logger:content ><![CDATA[#[import modules::JSONLoggerModule output application/json ---
+{
+    payload: JSONLoggerModule::stringifyNonJSON(vars.salesforceUpdateAccountResponse)
+}]]]></json-logger:content>
+		</json-logger:logger>
+		<choice doc:name="Choice - Account Updated?" doc:id="fc3e9080-b5c0-4f75-8e60-80bc57e3683d" >
+			<when expression="payload.successful == true">
+				<ee:transform doc:name="Update Account Response" doc:id="aae1efd0-d2cb-489e-a94b-2574c289e01f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: payload.items.payload.id[0]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="400" doc:name="Set HTTP Status Code" doc:id="b1bc49e3-ed03-4e5c-98f4-d31712a27bf1" variableName="httpStatus"/>
+				<ee:transform doc:name="Update Account Error Response" doc:id="06bf898f-e5e9-4232-9751-148e9a63f1e9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: {    
+			  errorCode: vars.httpStatus,
+			  errorDateTime: now(),
+			  errorMessage: payload.items[0].payload.errors[0].statusCode ++ " " ++ "ERROR",
+			  errorDescription: payload.items[0].payload.errors[0].message
+          }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<flow-ref doc:name="Calling Custom Metrics Flow" doc:id="b224eb8c-8682-4c4a-b63b-6b8cdcfda6fe" name="custom-metrics-sub-Flow"/>
+				<flow-ref doc:name="create-object-in-amazon-s3-bucket" doc:id="d920c11d-bb26-4b50-bcfb-53332894d554" name="create-object-in-amazon-s3-bucket" target="s3Response" />
+			
+
+</otherwise>
+		</choice>
+	</sub-flow>
+		
+</mule>
