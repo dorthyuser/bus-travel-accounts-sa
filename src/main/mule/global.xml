@@ -21,7 +21,7 @@ http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/m
 
 	<!-- https listener config -->
 	<http:listener-config
-		name="railcards-accounts-sa-httpsListenerConfig">
+		name="travel-accounts-sa-httpsListenerConfig">
 		<http:listener-connection
 			host="${https.listener.host}" port="${https.listener.port}" protocol="HTTPS">
 			<tls:context >
@@ -66,7 +66,7 @@ http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/m
 	<!-- API Autodiscovery Configuration -->
 	<api-gateway:autodiscovery
 		apiId="${autodiscovery.api.id}"
-		flowRef="railcards-accounts-sa-api" doc:name="API Autodiscovery" ignoreBasePath="true"/>
+		flowRef="travel-accounts-sa-api" doc:name="API Autodiscovery" ignoreBasePath="true"/>
 
 	<!-- Secure Properties -->
 	<secure-properties:config
