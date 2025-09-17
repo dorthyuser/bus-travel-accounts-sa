@@ -9,14 +9,14 @@
 	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core  http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd   http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd">
-	<apikit:config name="railcards-accounts-sa-config"
+	<apikit:config name="travel-accounts-sa-config"
 		api="resource::1646e1ef-5dd6-4ed5-973a-0ca5ce210da2:accounts-sa:1.0.9:raml:zip:bus-travel-accounts-sa.raml"
 		raml="bus-travel-accounts-sa.raml"
 		outboundHeadersMapName="outboundHeaders"
 		httpStatusVarName="httpStatus" disableValidations="true"/>
-	<flow name="railcards-accounts-sa-api">
+	<flow name="travel-accounts-sa-api">
 		<http:listener
-			config-ref="railcards-accounts-sa-httpsListenerConfig"
+			config-ref="travel-accounts-sa-httpsListenerConfig"
 			path="${https.listener.path}" doc:name="HTTPS Listener">
 			<http:response
 				statusCode="#[vars.httpStatus default 200]" />
@@ -58,7 +58,7 @@ attributes.Method]]></ee:set-variable>
     		  	null
 }]]]></json-logger:content>
 		</json-logger:logger>
-		<apikit:router config-ref="railcards-accounts-sa-config" />
+		<apikit:router config-ref="travel-accounts-sa-config" />
 		<json-logger:logger doc:name="End"
 			doc:id="1d6c2181-7162-4264-b191-609de976ce8a"
 			message="END - Request processing completed"
@@ -73,29 +73,29 @@ attributes.Method]]></ee:set-variable>
 		<error-handler ref="global-error-handler" />
 	</flow>
 	<flow
-		name="put:\accounts\(id):application\json:railcards-accounts-sa-config">
+		name="put:\accounts\(id):application\json:travel-accounts-sa-config">
 		<flow-ref
-			doc:name="railcards-accounts-sa-put-accounts-sub-flow"
+			doc:name="travel-accounts-sa-put-accounts-sub-flow"
 			doc:id="a8e79c81-76e6-479a-8978-3116ab9b616c"
-			name="railcards-accounts-sa-put-accounts-sub-flow" />
+			name="travel-accounts-sa-put-accounts-sub-flow" />
 	</flow>
-	<flow name="get:\accounts:railcards-accounts-sa-config">
+	<flow name="get:\accounts:travel-accounts-sa-config">
 		<flow-ref
-			doc:name="railcards-accounts-sa-get-accounts-sub-flow"
+			doc:name="travel-accounts-sa-get-accounts-sub-flow"
 			doc:id="9e4608c6-d1f2-40ae-914b-5ab399332f86"
-			name="railcards-accounts-sa-get-accounts-sub-flow" />
+			name="travel-accounts-sa-get-accounts-sub-flow" />
 	</flow>
-	<flow name="get:\accounts\(id):railcards-accounts-sa-config">
+	<flow name="get:\accounts\(id):travel-accounts-sa-config">
 		<flow-ref
-			doc:name="railcards-accounts-sa-get-account-details-sub-flow"
+			doc:name="travel-accounts-sa-get-account-details-sub-flow"
 			doc:id="a95c05b6-c85d-4276-ab74-935d73a27848"
-			name="railcards-accounts-sa-get-account-details-sub-flow" />
+			name="travel-accounts-sa-get-account-details-sub-flow" />
 	</flow>
 	<flow
-		name="post:\accounts:application\json:railcards-accounts-sa-config">
+		name="post:\accounts:application\json:travel-accounts-sa-config">
 		<flow-ref
-			doc:name="railcards-accounts-sa-post-accounts-sub-flow"
+			doc:name="travel-accounts-sa-post-accounts-sub-flow"
 			doc:id="6b72b369-c82d-40a0-9d51-a8cdadcd8d0e"
-			name="railcards-accounts-sa-post-accounts-sub-flow" />
+			name="travel-accounts-sa-post-accounts-sub-flow" />
 	</flow>
 </mule>
