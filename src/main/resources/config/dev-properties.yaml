@@ -8,14 +8,13 @@ https:
     path: "api/${api.version}/*"
    
 salesforce:
-  username: "mulesoft@raildeliverygroup.com.rdgdev"
+  username: "mulesoft@travelgroup.com"
   password: "![rAQUIvddbqivKuyCzy964w==]"
-  token: "![DxwqWD9CO5aywQKGzfdGhMegtX5GGNr+/hImiVDvZ/4=]"
-  passwordToken: "![maMFj5dbXxoHJ0hmD3asXwds+0D9pxElPEGW0aLo2lGUSuvvC+RXsp9VrvXmpzqc]" #combination of password and security token
+  token: "![uhsd78sa6d87ab+/hImiVDvZ/4=]"
+  passwordToken: "![lkjkhioh+0D9pxElPEGW0aLo2lGUSuvvC+RXsp9VrvXmpzqc]" #combination of password and security token
   url: "https://test.salesforce.com/services/Soap/u/43.0"
-  webServiceURL: "rdg--rdgdev.sandbox.my.salesforce.com"
-  consumerKey: "![zuwHEXB0v7TOekYpK44hObBuD7kWTJzrE8fk+uRFoLv5OH5JkBI1Zbl0gAilRu3VmXiWn8UDmkDDI2kRzQFh7xpua11yD68d8wuWOeWULlQjxCtVH/z/tQ1FgubwEWYF]"
-  consumerSecret: "![kzLVwYULBrKZkxYRJIv2PTG0V1GYQl9yepGkF4MNgGb2xI0HmC4IH+0OeaOaX6mdcyI40wL/CeryAAl9lfDa66CqZPbY/7kP0dHZd9/MlVg=]"
+  consumerKey: "![kjhjhg+uRFoLv5OH5JkBI1Zbl0gAilRu3VmXiWn8UDmkDDI2kRzQFh7xpua11yD68d8wuWOeWULlQjxCtVH/z/tQ1FgubwEWYF]"
+  consumerSecret: "![,jknbkjn+0OeaOaX6mdcyI40wL/CeryAAl9lfDa66CqZPbY/7kP0dHZd9/MlVg=]"
   tokenEndpoint: "test.salesforce.com"
   reconnect:
     frequencyInMilliseconds: "500"
@@ -25,8 +24,8 @@ salesforce:
 # Amazon s3 bucket # 
 amazon:
   s3:
-    accessKey: "![L+D+U7kOXYaL0uhYv3l2XJjwVVTZe/TuTTNFH3k330g=]"
-    secretKey: "![G6yK0zNIz606Cdy4EXYuwpegXsgD2HH9j9goABZVCpq+njIkQgSFB8MS9ytEnHlR]"
+    accessKey: "![L+D+kjhiuhiuhiu/TuTTNFH3k330g=]"
+    secretKey: "![kjlhkjhkjhlhkj+njIkQgSFB8MS9ytEnHlR]"
     region: "eu-west-1" 
 #   Europe (Ireland)   
     bucket: "mulesoft-sf-error-landing"       
@@ -36,9 +35,9 @@ keystore:
     path: "config/keystore-nonproduction.jks"
   cert:
     alias: "mule"
-  keypassword: "![ViVhxiFxv7GnTg+ztpI3mA==]"
-  storepassword: "![GDHArrtbaz9ELRrJM9wLsw==]"
+  keypassword: "![jhghkjgjhg+ztpI3mA==]"
+  storepassword: "![kjhjkhkjhh==]"
 
 autodiscovery:
   api:
-    id: "15667222"
+    id: "79867676"
